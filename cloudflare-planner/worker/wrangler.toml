@@ -35,11 +35,10 @@ max_retries = 3
 binding = "PLANNER_STORAGE"
 bucket_name = "react-planner-storage"
 
-# KV for metadata and caching (optional)
-[[kv_namespaces]]
-binding = "PLANNER_METADATA"
-id = "your-kv-namespace-id"
-
+# KV for metadata and caching (optional)                                    
+[[kv_namespaces]]                                                           
+binding = "PLANNER_METADATA"                                                
+id = "02bba12a2c5e457999fa0ed3016f1f37" 
 # Environment variables
 [vars]
 ENVIRONMENT = "production"
