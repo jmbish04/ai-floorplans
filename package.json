@@ -18,10 +18,11 @@
     "version": "npm run update-version-file && npm run build && npm run add-build-to-vcs",
     "postpublish": "npm run website-update",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "deploy": "npm run build && npm run website-update",
+    "deploy": "yarn run build && cd cloudflare-planner/worker && yarn install && yarn run deploy",
     "deploy:worker": "cd cloudflare-planner/worker && npm run deploy",
-    "deploy:all": "npm run deploy && npm run deploy:worker"
+    "deploy:all": "npm run deploy"
   },
+  "packageManager": "yarn@1.22.22",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/cvdlab/react-planner.git"
