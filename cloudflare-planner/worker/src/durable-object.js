@@ -292,11 +292,19 @@ export class PlannerSessionDO {
     console.log('Alarm triggered for session:', this.state.id.toString());
 
     // Auto-save if there's a planId and modifications
-    // Auto-save if there's a planId and modifications
     if (this.sessionMetadata && this.sessionMetadata.planId && this.sessionMetadata.modifications.length > 0) {
       try {
-
-    // Schedule next alarm (every 5 minutes)
-    await this.state.storage.setAlarm(Date.now() + 300000);
+        console.log(`Auto-saving plan ${this.sessionMetadata.planId}`);
+        await this.savePlan(this.sessionMetadata.planId);
+        this.sessionMetadata.modifications = []; // Clear modifications after save
+        await this.state.storage.put('metadata', this.sessionMetadata);
+        console.log('Auto-save successful');
+      } catch (error) {
+        console.error('Auto-save failed:', error);
+      } finally {
+        // Schedule next alarm (every 5 minutes)
+        await this.state.storage.setAlarm(Date.now() + 300000);
+      }
+    }
   }
 }
