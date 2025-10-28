@@ -103,7 +103,7 @@ export default {
 
     try {
       // Health check (public endpoint)
-      if (path === '/health' || path === '/') {
+      if (path === '/health') {
         return Response.json({
           status: 'healthy',
           service: 'react-planner-agent-gateway',
@@ -111,51 +111,89 @@ export default {
         }, { headers: CORS_HEADERS });
       }
 
-      // Verify authentication for all protected endpoints
-      if (!(await verifyAuth(request, env))) {
-        return Response.json(
-          { error: 'Unauthorized. Use: Authorization: Bearer <api-key>' },
-          { status: 401, headers: CORS_HEADERS }
-        );
+      async function ensureAuthorized() {
+        if (!(await verifyAuth(request, env))) {
+          return Response.json(
+            { error: 'Unauthorized. Use: Authorization: Bearer <api-key>' },
+            { status: 401, headers: CORS_HEADERS }
+          );
+        }
+        return null;
       }
 
       // Session-based endpoints
       if (path.startsWith('/session/')) {
+        const authResponse = await ensureAuthorized();
+        if (authResponse) {
+          return authResponse;
+        }
         return await handleSessionRequest(request, env, ctx, path);
       }
 
       // AI-powered modification endpoint
       if (path === '/modify') {
+        const authResponse = await ensureAuthorized();
+        if (authResponse) {
+          return authResponse;
+        }
         return await handleModifyRequest(request, env, ctx);
       }
 
       // Direct command endpoint (bypasses AI)
       if (path === '/command') {
+        const authResponse = await ensureAuthorized();
+        if (authResponse) {
+          return authResponse;
+        }
         return await handleCommandRequest(request, env, ctx);
       }
 
       // Screenshot endpoint
       if (path === '/screenshot') {
+        const authResponse = await ensureAuthorized();
+        if (authResponse) {
+          return authResponse;
+        }
         return await handleScreenshotRequest(request, env, ctx);
       }
 
       // Plan management
       if (path === '/save') {
+        const authResponse = await ensureAuthorized();
+        if (authResponse) {
+          return authResponse;
+        }
         return await handleSaveRequest(request, env, ctx);
       }
 
       if (path === '/load') {
+        const authResponse = await ensureAuthorized();
+        if (authResponse) {
+          return authResponse;
+        }
         return await handleLoadRequest(request, env, ctx);
       }
 
       // List sessions (admin endpoint)
       if (path === '/sessions') {
+        const authResponse = await ensureAuthorized();
+        if (authResponse) {
+          return authResponse;
+        }
         return await handleListSessions(request, env, ctx);
       }
 
+      // Fallback: forward all other requests to the renderer service so the
+      // React frontend (and its static assets) can be served without
+      // requiring API authentication.
+      if (env.RENDERER_SERVICE) {
+        return await env.RENDERER_SERVICE.fetch(request);
+      }
+
+      console.error('Renderer service binding is missing. Cannot forward request:', path);
       return Response.json(
-        { error: 'Not found', path },
-        { status: 404, headers: CORS_HEADERS }
+        { error: 'Renderer service unavailable', path },
+        { status: 502, headers: CORS_HEADERS }
       );
 
     } catch (error) {
