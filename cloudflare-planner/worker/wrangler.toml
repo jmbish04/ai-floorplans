@@ -11,7 +11,7 @@ binding = "AI"
 [[durable_objects.bindings]]
 name = "PLANNER_SESSION"
 class_name = "PlannerSessionDO"
-script_name = "react-planner-agent-gateway"
+script_name = "ai-floorplans"
 
 # Container binding for react-planner container instances
 [[container_bindings]]
