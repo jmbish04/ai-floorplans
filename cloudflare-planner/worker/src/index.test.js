@@ -36,7 +36,9 @@ const mockEnv = {
   PLANNER_METADATA: {
     get: vi.fn(),
     put: vi.fn()
-  }
+  },
+  TESLA_API_KEY: 'mock-tesla-key',
+  JWT_SIGNING_KEY: 'mock-jwt-key'
 };
 
 const mockCtx = {
@@ -46,6 +48,47 @@ const mockCtx = {
 describe('Worker Main Handler', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('should render setup page when configuration is missing', async () => {
+    const { default: worker } = await import('../src/index.js');
+
+    const env = {
+      ...mockEnv,
+      TESLA_API_KEY: '',
+      JWT_SIGNING_KEY: ''
+    };
+
+    const request = new Request('http://localhost/');
+    const response = await worker.fetch(request, env, mockCtx);
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Content-Type')).toContain('text/html');
+    expect(body).toContain('Tesla API Authentication & JWT Setup');
+  });
+
+  it('should block API access until configuration is complete', async () => {
+    const { default: worker } = await import('../src/index.js');
+
+    const env = {
+      ...mockEnv,
+      TESLA_API_KEY: '',
+      JWT_SIGNING_KEY: ''
+    };
+
+    const request = new Request('http://localhost/modify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: 's', prompt: 'Hi' })
+    });
+
+    const response = await worker.fetch(request, env, mockCtx);
+    const data = await response.json();
+
+    expect(response.status).toBe(503);
+    expect(data.error).toContain('Worker configuration incomplete');
+    expect(data.setupUrl).toContain('/setup');
   });
 
   it('should return health check response', async () => {
