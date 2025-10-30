@@ -35,11 +35,11 @@ WORKDIR /app
 COPY demo/dist /app/planner-dist
 
 # Copy container server code
-COPY cloudflare-planner/container/package*.json ./
+COPY package*.json ./
 RUN npm install --only=production
 
-COPY cloudflare-planner/container/server.js ./
-COPY cloudflare-planner/container/store-exposer.js ./
+COPY server.js ./
+COPY store-exposer.js ./
 
 # Expose port for command server
 EXPOSE 8080

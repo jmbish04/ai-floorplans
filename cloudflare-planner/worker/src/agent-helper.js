@@ -50,6 +50,7 @@ const aiResponseSchema = z.union([
  * Parse natural language prompt using Worker AI and StructuredResponseTool
  */
 export async function parsePromptWithAI(env, prompt, currentState = null) {
+  console.log(`Parsing prompt with AI: "${prompt}"`);
   
   // 1. Instantiate the new structured response tool
   const structuredTool = new StructuredResponseTool(env);

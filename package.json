@@ -18,6 +18,7 @@
     "version": "npm run update-version-file && npm run build && npm run add-build-to-vcs",
     "postpublish": "npm run website-update",
     "test": "echo \"Error: no test specified\" && exit 1",
+    "ci:deploy": "yarn run build && wrangler deploy --config cloudflare-planner/worker/wrangler.toml",
     "deploy": "yarn run build && cd cloudflare-planner/worker && yarn install && yarn run deploy",
     "deploy:worker": "cd cloudflare-planner/worker && npm run deploy",
     "deploy:all": "npm run deploy"
@@ -106,7 +107,8 @@
     "three": "0.94.0",
     "webpack": "4.29.6",
     "webpack-cli": "3.3.0",
-    "webpack-dev-server": "3.7.1"
+    "webpack-dev-server": "3.7.1",
+    "wrangler": "^4.45.1"
   },
   "peerDependencies": {
     "react": "16.x",

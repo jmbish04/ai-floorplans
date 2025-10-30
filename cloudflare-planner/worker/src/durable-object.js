@@ -3,7 +3,9 @@
  * Implements the Actor pattern for session management
  */
 
-export class PlannerSessionDO {
+import { Container } from '@cloudflare/containers';
+
+export class FloorplanSessionDO extends Container {
   constructor(state, env) {
     this.state = state;
     this.env = env;
@@ -30,25 +32,7 @@ export class PlannerSessionDO {
     console.log('Session initialized:', this.state.id.toString());
   }
 
-  /**
-   * Get or create container instance for this session
-   */
-  async getContainer() {
-    if (!this.containerInstance) {
-      console.log('Getting container instance for session:', this.state.id.toString());
 
-      // Get container instance from Container Bindings
-      // The container ID is derived from the Durable Object ID for consistency
-      const containerId = this.state.id.toString();
-      this.containerInstance = this.env.PLANNER_CONTAINER.get(containerId);
-
-      // Configure container sleep behavior
-      // Containers will sleep after 60 seconds of inactivity
-      this.containerInstance.sleepAfter(60000);
-    }
-
-    return this.containerInstance;
-  }
 
   /**
    * Helper to send a message to the connected WebSocket, if it exists.
@@ -77,10 +61,7 @@ export class PlannerSessionDO {
       message: `Executing command: ${command}`
     });
 
-    const container = await this.getContainer();
-
-    // Forward command to container's API
-    const response = await container.fetch('http://container/command', {
+    const response = await this.fetch('http://container/command', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ command, params })
@@ -123,9 +104,7 @@ export class PlannerSessionDO {
       message: `Dispatching action: ${action?.type || 'UNKNOWN'}`
     });
 
-    const container = await this.getContainer();
-
-    const response = await container.fetch('http://container/action', {
+    const response = await this.fetch('http://container/action', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action })
@@ -155,9 +134,7 @@ export class PlannerSessionDO {
       message: 'Fetching current state...'
     });
 
-    const container = await this.getContainer();
-
-    const response = await container.fetch('http://container/state', {
+    const response = await this.fetch('http://container/state', {
       method: 'GET'
     });
 
@@ -185,9 +162,7 @@ export class PlannerSessionDO {
       message: 'Executing custom script...'
     });
 
-    const container = await this.getContainer();
-
-    const response = await container.fetch('http://container/execute', {
+    const response = await this.fetch('http://container/execute', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ script })
@@ -216,9 +191,7 @@ export class PlannerSessionDO {
       message: 'Taking screenshot...'
     });
 
-    const container = await this.getContainer();
-
-    const response = await container.fetch('http://container/screenshot', {
+    const response = await this.fetch('http://container/screenshot', {
       method: 'GET'
     });
     
@@ -442,7 +415,11 @@ export class PlannerSessionDO {
           return Response.json({ error: 'Not found in Durable Object' }, { status: 404 });
       }
     } catch (error) {
-      console.error('Durable Object error:', error);
+      console.error('Durable Object fetch error:', {
+        path: path,
+        message: error.message,
+        stack: error.stack
+      });
       this.sendWebSocketMessage('EXECUTION_ERROR', { 
         error: error.message,
         stack: error.stack,

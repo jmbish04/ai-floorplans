@@ -3,21 +3,27 @@ main = "src/index.js"
 compatibility_date = "2024-01-01"
 compatibility_flags = ["nodejs_compat"]
 
+[[containers]]
+class_name = "FloorplanSessionDO"
+image = "../container/Dockerfile"
+
+[[durable_objects.bindings]]
+name = "FLOORPLAN_SESSION_DO"
+class_name = "FloorplanSessionDO"
+
 # Workers AI binding for natural language processing
 [ai]
 binding = "AI"
 
-# Durable Object for session management
-[[durable_objects.bindings]]
-name = "PLANNER_SESSION"
-class_name = "PlannerSessionDO"
-script_name = "ai-floorplans"
 
-# Container binding for react-planner container instances
-[[container_bindings]]
-name = "PLANNER_CONTAINER"
-# Container name will be configured during deployment
-# container_id = "your-container-id"
+
+
+
+
+
+
+
+
 
 # Queue for asynchronous task processing
 [[queues.producers]]
@@ -44,16 +50,15 @@ id = "02bba12a2c5e457999fa0ed3016f1f37"
 ENVIRONMENT = "production"
 LOG_LEVEL = "info"
 
-# Development overrides
-[env.dev]
-vars = { ENVIRONMENT = "development", LOG_LEVEL = "debug" }
-
-# Durable Object migrations (for initial deployment)
-[[migrations]]
-tag = "v1"
-new_classes = ["PlannerSessionDO"]
-
-# Observability
 [observability]
+[observability.logs]
 enabled = true
 head_sampling_rate = 1
+invocation_logs = true
+persist = true
+
+
+
+[[migrations]]
+tag = "v10-final-cleanup"
+new_sqlite_classes = ["FloorplanSessionDO"]

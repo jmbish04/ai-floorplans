@@ -81,6 +81,8 @@ deploy_container() {
     docker tag $CONTAINER_NAME:latest $REGISTRY_URL
 
     echo -e "${YELLOW}Pushing to Cloudflare Container Registry...${NC}"
+    CLOUDFLARE_EMAIL=$(wrangler whoami | grep "email" | sed 's/.*email //;s/\.//')
+    echo "$CLOUDFLARE_API_TOKEN" | docker login registry.cloudflare.com --username "$CLOUDFLARE_EMAIL" --password-stdin
     docker push $REGISTRY_URL
 
     echo -e "${GREEN}✓ Container deployed${NC}"

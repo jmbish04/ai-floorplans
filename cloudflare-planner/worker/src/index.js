@@ -3,11 +3,12 @@
  * Handles incoming requests and routes them to appropriate Durable Objects
  */
 
-import { PlannerSessionDO } from './durable-object.js';
+import { FloorplanSessionDO } from './durable-object.js';
 import { parsePromptWithAI, executeCommandSequence } from './agent-helper.js';
 
 // Export Durable Object class
-export { PlannerSessionDO };
+export { FloorplanSessionDO };
+export { FloorplanSessionDO as PlannerSessionDO };
 
 /**
  * CORS headers for browser requests
@@ -219,7 +220,12 @@ export default {
       );
 
     } catch (error) {
-      console.error('Worker error:', error);
+      console.error('Worker error:', {
+        message: error.message,
+        stack: error.stack,
+        url: request.url,
+        method: request.method
+      });
       return Response.json(
         { error: error.message, stack: error.stack },
         { status: 500, headers: CORS_HEADERS }
