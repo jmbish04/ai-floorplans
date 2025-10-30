@@ -49,9 +49,9 @@ LOG_LEVEL = "info"
 vars = { ENVIRONMENT = "development", LOG_LEVEL = "debug" }
 
 # Durable Object migrations (for initial deployment)
-[[migrations]]
-tag = "v1"
-new_classes = ["PlannerSessionDO"]
+# [[migrations]]
+# tag = "v1"
+# new_classes = ["PlannerSessionDO"]
 
 # Observability
 [observability]
