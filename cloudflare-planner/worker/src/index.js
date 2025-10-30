@@ -14,7 +14,7 @@ export { PlannerSessionDO };
  */
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, PUT, DELETE',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
@@ -119,6 +119,28 @@ export default {
           );
         }
         return null;
+      }
+
+      // *** NEW: Handle WebSocket agent connections ***
+      // This route must come *before* /session/ to be matched correctly.
+      if (path === '/agent/ws') {
+        const authResponse = await ensureAuthorized();
+        if (authResponse) {
+          return authResponse;
+        }
+
+        const sessionId = url.searchParams.get('sessionId');
+        if (!sessionId) {
+          return Response.json(
+            { error: 'sessionId query parameter is required for WebSocket' },
+            { status: 400, headers: CORS_HEADERS }
+          );
+        }
+
+        const session = getSession(env, sessionId);
+        
+        // Forward the entire request (including upgrade headers) to the DO
+        return await session.fetch(request);
       }
 
       // Session-based endpoints
@@ -239,6 +261,10 @@ export default {
 
           case 'BATCH_COMMANDS':
             const commands = params.commands;
+            // Note: executeCommandSequence is not part of the DO,
+            // so it won't send WebSocket updates unless modified to take the session
+            // and send updates from this worker context (which is complex).
+            // A better way is to move batch execution logic *into* the DO.
             await executeCommandSequence(session, commands);
             break;
 
