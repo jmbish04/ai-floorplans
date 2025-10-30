@@ -10,7 +10,7 @@ export class PlannerSessionDO {
     this.containerInstance = null;
     this.sessionMetadata = null;
     this.lastActivity = Date.now();
-    this.webSocket = null; // NEW: To hold the live WebSocket
+    this.webSocket = null; // <-- NEW: To hold the live WebSocket
   }
 
   /**
@@ -51,11 +51,31 @@ export class PlannerSessionDO {
   }
 
   /**
+   * Helper to send a message to the connected WebSocket, if it exists.
+   */
+  sendWebSocketMessage(type, payload) {
+    if (this.webSocket) {
+      try {
+        this.webSocket.send(JSON.stringify({ type, ...payload }));
+      } catch (e) {
+        console.error('Failed to send WebSocket message:', e);
+      }
+    }
+  }
+
+  /**
    * Execute a command on the container
    */
   async executeCommand(command, params) {
     await this.initialize();
     this.lastActivity = Date.now();
+
+    this.sendWebSocketMessage('STEP_START', { 
+      action: 'executeCommand', 
+      command, 
+      params,
+      message: `Executing command: ${command}`
+    });
 
     const container = await this.getContainer();
 
@@ -79,6 +99,13 @@ export class PlannerSessionDO {
       // Persist metadata
       await this.state.storage.put('metadata', this.sessionMetadata);
     }
+    
+    this.sendWebSocketMessage('STEP_COMPLETE', { 
+      action: 'executeCommand', 
+      command, 
+      result,
+      message: `Command ${command} finished. Success: ${result.success}`
+    });
 
     return result;
   }
@@ -90,6 +117,12 @@ export class PlannerSessionDO {
     await this.initialize();
     this.lastActivity = Date.now();
 
+    this.sendWebSocketMessage('STEP_START', { 
+      action: 'dispatchAction', 
+      actionType: action?.type,
+      message: `Dispatching action: ${action?.type || 'UNKNOWN'}`
+    });
+
     const container = await this.getContainer();
 
     const response = await container.fetch('http://container/action', {
@@ -98,7 +131,16 @@ export class PlannerSessionDO {
       body: JSON.stringify({ action })
     });
 
-    return await response.json();
+    const result = await response.json();
+    
+    this.sendWebSocketMessage('STEP_COMPLETE', { 
+      action: 'dispatchAction', 
+      actionType: action?.type,
+      result,
+      message: `Action ${action?.type || 'UNKNOWN'} finished.`
+    });
+
+    return result;
   }
 
   /**
@@ -107,6 +149,11 @@ export class PlannerSessionDO {
   async getState() {
     await this.initialize();
     this.lastActivity = Date.now();
+    
+    this.sendWebSocketMessage('STEP_START', { 
+      action: 'getState', 
+      message: 'Fetching current state...'
+    });
 
     const container = await this.getContainer();
 
@@ -114,7 +161,16 @@ export class PlannerSessionDO {
       method: 'GET'
     });
 
-    return await response.json();
+    const result = await response.json();
+
+    this.sendWebSocketMessage('STEP_COMPLETE', { 
+      action: 'getState',
+      message: 'State fetched.'
+      // Don't send the full state over WS unless needed, it could be large
+      // result: { success: result.success } 
+    });
+    
+    return result;
   }
 
   /**
@@ -123,6 +179,11 @@ export class PlannerSessionDO {
   async executeScript(script) {
     await this.initialize();
     this.lastActivity = Date.now();
+    
+    this.sendWebSocketMessage('STEP_START', { 
+      action: 'executeScript', 
+      message: 'Executing custom script...'
+    });
 
     const container = await this.getContainer();
 
@@ -132,7 +193,15 @@ export class PlannerSessionDO {
       body: JSON.stringify({ script })
     });
 
-    return await response.json();
+    const result = await response.json();
+    
+    this.sendWebSocketMessage('STEP_COMPLETE', { 
+      action: 'executeScript',
+      result,
+      message: `Script execution finished. Success: ${result.success}`
+    });
+
+    return result;
   }
 
   /**
@@ -142,13 +211,25 @@ export class PlannerSessionDO {
     await this.initialize();
     this.lastActivity = Date.now();
 
+    this.sendWebSocketMessage('STEP_START', { 
+      action: 'takeScreenshot', 
+      message: 'Taking screenshot...'
+    });
+
     const container = await this.getContainer();
 
     const response = await container.fetch('http://container/screenshot', {
       method: 'GET'
     });
+    
+    const result = await response.json();
 
-    return await response.json();
+    this.sendWebSocketMessage('STEP_COMPLETE', { 
+      action: 'takeScreenshot',
+      message: `Screenshot finished. Success: ${result.success}`
+    });
+
+    return result;
   }
 
   /**
@@ -156,10 +237,21 @@ export class PlannerSessionDO {
    */
   async savePlan(planId) {
     await this.initialize();
+    
+    this.sendWebSocketMessage('STEP_START', { 
+      action: 'savePlan',
+      planId,
+      message: `Saving plan ${planId}...`
+    });
 
     const stateResult = await this.getState();
 
     if (!stateResult.success) {
+      this.sendWebSocketMessage('STEP_ERROR', { 
+        action: 'savePlan',
+        planId,
+        message: 'Failed to get state for saving.'
+      });
       throw new Error('Failed to get state for saving');
     }
 
@@ -183,8 +275,16 @@ export class PlannerSessionDO {
     this.sessionMetadata.planId = planId;
     this.sessionMetadata.lastSaved = Date.now();
     await this.state.storage.put('metadata', this.sessionMetadata);
+    
+    const result = { success: true, planId, key: planKey };
 
-    return { success: true, planId, key: planKey };
+    this.sendWebSocketMessage('STEP_COMPLETE', { 
+      action: 'savePlan',
+      result,
+      message: `Plan ${planId} saved successfully.`
+    });
+
+    return result;
   }
 
   /**
@@ -193,10 +293,21 @@ export class PlannerSessionDO {
   async loadPlan(planId) {
     await this.initialize();
 
+    this.sendWebSocketMessage('STEP_START', { 
+      action: 'loadPlan',
+      planId,
+      message: `Loading plan ${planId}...`
+    });
+
     const planKey = `plans/${planId}.json`;
     const plan = await this.env.PLANNER_STORAGE.get(planKey);
 
     if (!plan) {
+      this.sendWebSocketMessage('STEP_ERROR', { 
+        action: 'loadPlan',
+        planId,
+        message: `Plan not found: ${planId}`
+      });
       throw new Error(`Plan not found: ${planId}`);
     }
 
@@ -210,6 +321,12 @@ export class PlannerSessionDO {
     // Update metadata
     this.sessionMetadata.planId = planId;
     await this.state.storage.put('metadata', this.sessionMetadata);
+    
+    this.sendWebSocketMessage('STEP_COMPLETE', { 
+      action: 'loadPlan',
+      result,
+      message: `Plan ${planId} loaded. Success: ${result.success}`
+    });
 
     return result;
   }
@@ -232,6 +349,53 @@ export class PlannerSessionDO {
   async fetch(request) {
     await this.initialize();
 
+    // *** NEW: Handle WebSocket upgrade requests ***
+    const upgradeHeader = request.headers.get('Upgrade');
+    if (upgradeHeader === 'websocket') {
+      console.log('WebSocket upgrade request received for session:', this.state.id.toString());
+      
+      const [client, server] = Object.values(new WebSocketPair());
+
+      // Store the "server" side of the socket
+      this.webSocket = server;
+
+      // Set up listeners
+      this.webSocket.accept();
+      
+      this.webSocket.addEventListener('message', async (event) => {
+        // This is where you would handle incoming messages from the client
+        // For now, we just log it. The primary flow is HTTP request -> WS status updates
+        console.log('WebSocket message received:', event.data);
+        this.sendWebSocketMessage('ECHO', { 
+          message: 'Message received', 
+          data: event.data 
+        });
+      });
+
+      this.webSocket.addEventListener('close', () => {
+        console.log('WebSocket closed for session:', this.state.id.toString());
+        this.webSocket = null; // Clear the socket on close
+      });
+
+      this.webSocket.addEventListener('error', (error) => {
+        console.error('WebSocket error:', error);
+        this.webSocket = null; // Clear the socket on error
+      });
+      
+      this.sendWebSocketMessage('CONNECTED', { 
+        message: 'WebSocket connection established with Durable Object.'
+      });
+
+      // Return the "client" side of the socket to the browser
+      return new Response(null, {
+        status: 101,
+        webSocket: client,
+      });
+    }
+    // *** End of WebSocket logic ***
+
+
+    // Existing HTTP logic
     const url = new URL(request.url);
     const path = url.pathname;
 
@@ -275,10 +439,15 @@ export class PlannerSessionDO {
           return Response.json(metadata);
 
         default:
-          return Response.json({ error: 'Not found' }, { status: 404 });
+          return Response.json({ error: 'Not found in Durable Object' }, { status: 404 });
       }
     } catch (error) {
       console.error('Durable Object error:', error);
+      this.sendWebSocketMessage('EXECUTION_ERROR', { 
+        error: error.message,
+        stack: error.stack,
+        message: 'An error occurred during execution.'
+      });
       return Response.json(
         { success: false, error: error.message },
         { status: 500 }
