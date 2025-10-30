@@ -10,6 +10,7 @@ export class PlannerSessionDO {
     this.containerInstance = null;
     this.sessionMetadata = null;
     this.lastActivity = Date.now();
+    this.webSocket = null; // NEW: To hold the live WebSocket
   }
 
   /**
